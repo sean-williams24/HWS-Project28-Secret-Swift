@@ -81,9 +81,15 @@ class ViewController: UIViewController {
                     if success {
                         self?.unlockSecretMessage()
                     } else {
-                        // SHow eerror
-                        let ac = UIAlertController(title: "User Authentication Failed", message: "You could not be idetified.", preferredStyle: .alert)
-                        ac.addAction(UIAlertAction(title: "OK", style: .default))
+                        // Show error
+                        let ac = UIAlertController(title: "FACE ID Failed", message: "You could not be identified.", preferredStyle: .alert)
+                        ac.addAction(UIAlertAction(title: "OK", style: .default, handler: { _ in
+                            if let password = KeychainWrapper.standard.string(forKey: "Password") {
+                                self?.passwordAuthenticate(password: password)
+                            } else {
+                                self?.passwordAuthenticate(password: nil)
+                            }
+                        }))
                         self?.present(ac, animated: true)
                     }
                 }
@@ -94,6 +100,29 @@ class ViewController: UIViewController {
             ac.addAction(UIAlertAction(title: "OK", style: .default))
             self.present(ac, animated: true)
         }
+    }
+    
+    
+    func passwordAuthenticate(password: String?) {
+        let ac = UIAlertController(title: "Enter Password", message: "If you are a new user, please create a password.", preferredStyle: .alert)
+        ac.addTextField()
+        ac.addAction(UIAlertAction(title: "OK", style: .default, handler: { (action) in
+            guard let text = ac.textFields?[0].text else { return }
+            if password == nil {
+                KeychainWrapper.standard.set(text, forKey: "Password")
+                self.unlockSecretMessage()
+                
+            } else if password == text {
+                self.unlockSecretMessage()
+
+            } else {
+                let ac = UIAlertController(title: "User Authentication Failed", message: "You could not be identified.", preferredStyle: .alert)
+                ac.addAction(UIAlertAction(title: "OK", style: .default))
+                self.present(ac, animated: true)
+            }
+        }))
+        
+        present(ac, animated: true)
     }
     
 }
