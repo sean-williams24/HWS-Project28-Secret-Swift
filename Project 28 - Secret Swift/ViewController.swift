@@ -6,13 +6,15 @@
 //  Copyright © 2019 Sean Williams. All rights reserved.
 //
 
+import LocalAuthentication
 import UIKit
 
 class ViewController: UIViewController {
     
     @IBOutlet var secret: UITextView!
     
-
+    var doneButton = UIBarButtonItem()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -23,13 +25,17 @@ class ViewController: UIViewController {
         notificationCenter.addObserver(self, selector: #selector(adjustForKeyboard), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
         notificationCenter.addObserver(self, selector: #selector(saveSecretMessage), name: UIApplication.willResignActiveNotification, object: nil)
         
+        doneButton = UIBarButtonItem(barButtonSystemItem: .save, target: self, action: #selector(saveSecretMessage))
+        navigationItem.rightBarButtonItem = doneButton
+        doneButton.isEnabled = false
+        
     }
     
     
     func unlockSecretMessage() {
         secret.isHidden = false
         title = "Secret Stuff!"
-        
+        doneButton.isEnabled = true
         secret.text = KeychainWrapper.standard.string(forKey: "SecretMessage") ?? ""
     }
     
@@ -39,6 +45,7 @@ class ViewController: UIViewController {
         KeychainWrapper.standard.set(secret.text, forKey: "SecretMessage")
         secret.resignFirstResponder()
         secret.isHidden = true
+        doneButton.isEnabled = false
         title = "Nothing to see here!"
     }
     
@@ -63,7 +70,30 @@ class ViewController: UIViewController {
     
     
     @IBAction func authenticateTapped(_ sender: Any) {
-        unlockSecretMessage()
+        let context = LAContext()
+        var error: NSError?
+        
+        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
+            let reason = "Identify Yourself!"
+            
+            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { [weak self] (success, authenticationError) in
+                DispatchQueue.main.async {
+                    if success {
+                        self?.unlockSecretMessage()
+                    } else {
+                        // SHow eerror
+                        let ac = UIAlertController(title: "User Authentication Failed", message: "You could not be idetified.", preferredStyle: .alert)
+                        ac.addAction(UIAlertAction(title: "OK", style: .default))
+                        self?.present(ac, animated: true)
+                    }
+                }
+            }
+        } else {
+            // No biometry
+            let ac = UIAlertController(title: "Biometry unavailable", message: "Your device is not configured for biometric authentication.", preferredStyle: .alert)
+            ac.addAction(UIAlertAction(title: "OK", style: .default))
+            self.present(ac, animated: true)
+        }
     }
     
 }
